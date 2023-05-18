@@ -26,14 +26,20 @@ function tipi_yttc_settings_page() {
                 $start_date = sanitize_text_field($date_pair["start_date"]);
                 $end_date = sanitize_text_field($date_pair["end_date"]);
 
-                // Perform validation if required
-
-                // Add the sanitized date pair to the array
-                $sanitized_dates[] = array(
-                    "start_date" => $start_date,
-                    "end_date" => $end_date
-                );
+                // Check if neither the start nor end date is before or the same as the current moment
+                if (strtotime($start_date) > time() && strtotime($end_date) > time()) {
+                    // Add the sanitized date pair to the array
+                    $sanitized_dates[] = array(
+                        "start_date" => $start_date,
+                        "end_date" => $end_date
+                    );
+                }
             }
+
+            // Sort the dates by start date in ascending order
+            usort($sanitized_dates, function ($a, $b) {
+                return strtotime($a['start_date']) - strtotime($b['start_date']);
+            });
 
             // Save the dates to the database
             update_option("tipi-yttc-dates", $sanitized_dates);
@@ -63,17 +69,20 @@ function tipi_yttc_settings_page() {
                 </table>
                 <div class="tipi-yttc-dates-container">
                     <?php
-                    foreach ($dates as $index => $date_pair) {
+                    $pairIndex = 0;
+                    foreach ($dates as $date_pair) {
                         $start_date = esc_attr($date_pair['start_date']);
                         $end_date = esc_attr($date_pair['end_date']);
 
                         echo '<div class="tipi-yttc-date-pair">';
-                        echo '<label>Pair ' . ($index + 1) . '</label>';
-                        echo '<input type="date" name="tipi-yttc-dates[' . $index . '][start_date]" value="' . $start_date . '" />';
+                        echo '<label>Pair ' . ($pairIndex + 1) . '</label>';
+                        echo '<input type="date" name="tipi-yttc-dates[' . $pairIndex . '][start_date]" value="' . $start_date . '" />';
                         echo ' - ';
-                        echo '<input type="date" name="tipi-yttc-dates[' . $index . '][end_date]" value="' . $end_date . '" />';
+                        echo '<input type="date" name="tipi-yttc-dates[' . $pairIndex . '][end_date]" value="' . $end_date . '" />';
                         echo '<button type="button" class="button tipi-yttc-delete-date">Delete</button>';
                         echo '</div>';
+
+                        $pairIndex++;
                     }
                     ?>
                 </div>
@@ -84,12 +93,19 @@ function tipi_yttc_settings_page() {
 
             <button type="button" class="button" id="tipi-yttc-add-date">Add Date Pair</button>
 
-            <script>
+           <script>
     document.addEventListener("DOMContentLoaded", function() {
-        var addButton = document.getElementById("tipi-yttc-add-date");
         var datesContainer = document.querySelector(".tipi-yttc-dates-container");
 
-        var pairIndex = datesContainer.querySelectorAll(".tipi-yttc-date-pair").length + 1;
+        datesContainer.addEventListener("click", function(event) {
+            if (event.target.classList.contains("tipi-yttc-delete-date")) {
+                var datePair = event.target.closest('.tipi-yttc-date-pair');
+                datePair.remove();
+            }
+        });
+
+        var addButton = document.getElementById("tipi-yttc-add-date");
+        var pairIndex = datesContainer.querySelectorAll(".tipi-yttc-date-pair").length;
 
         if (addButton) {
             addButton.addEventListener("click", function() {
@@ -97,7 +113,7 @@ function tipi_yttc_settings_page() {
                 newDatePair.classList.add("tipi-yttc-date-pair");
 
                 newDatePair.innerHTML = `
-                    <label>Pair ${pairIndex}</label>
+                    <label>Pair ${pairIndex + 1}</label>
                     <input type="date" name="tipi-yttc-dates[${pairIndex}][start_date]" value="" />
                     -
                     <input type="date" name="tipi-yttc-dates[${pairIndex}][end_date]" value="" />
@@ -107,30 +123,6 @@ function tipi_yttc_settings_page() {
                 datesContainer.appendChild(newDatePair);
                 pairIndex++;
             });
-        }
-
-        datesContainer.addEventListener("click", function(event) {
-            if (event.target.classList.contains("tipi-yttc-delete-date")) {
-                var datePair = event.target.closest('.tipi-yttc-date-pair');
-                datePair.remove();
-            }
-        });
-
-        // Ensure only one date pair is added on page load
-        var datePairs = datesContainer.querySelectorAll(".tipi-yttc-date-pair");
-        if (datePairs.length === 0) {
-            var newDatePair = document.createElement("div");
-            newDatePair.classList.add("tipi-yttc-date-pair");
-
-            newDatePair.innerHTML = `
-                <label>Pair 1</label>
-                <input type="date" name="tipi-yttc-dates[0][start_date]" value="" />
-                -
-                <input type="date" name="tipi-yttc-dates[0][end_date]" value="" />
-                <button type="button" class="button tipi-yttc-delete-date">Delete</button>
-            `;
-
-            datesContainer.appendChild(newDatePair);
         }
     });
 </script>
@@ -156,33 +148,63 @@ function tipi_yttc_dates_section() {
 
 // Render the dates fields
 function tipi_yttc_dates_field($dates) {
-    // echo '<div class="tipi-yttc-date-fields">';
-    // foreach ($dates as $index => $date_pair) {
-    //     $start_date = esc_attr($date_pair['start_date']);
-    //     $end_date = esc_attr($date_pair['end_date']);
+    echo '<div class="tipi-yttc-date-fields">';
+    $pairIndex = 0;
+    foreach ($dates as $date_pair) {
+        $start_date = esc_attr($date_pair['start_date']);
+        $end_date = esc_attr($date_pair['end_date']);
 
-    //     echo '<div class="tipi-yttc-date-pair">';
-    //     echo '<label>Pair ' . ($index + 1) . '</label>';
-    //     echo '<input type="date" name="tipi-yttc-dates[' . $index . '][start_date]" value="' . $start_date . '" />';
-    //     echo ' - ';
-    //     echo '<input type="date" name="tipi-yttc-dates[' . $index . '][end_date]" value="' . $end_date . '" />';
-    //     echo '<button type="button" class="button tipi-yttc-delete-date">Delete</button>';
-    //     echo '</div>';
-    // }
-    // echo '</div>';
+        echo '<div class="tipi-yttc-date-pair">';
+        echo '<label>Pair ' . ($pairIndex + 1) . '</label>';
+        echo '<input type="date" name="tipi-yttc-dates[' . $pairIndex . '][start_date]" value="' . $start_date . '" />';
+        echo ' - ';
+        echo '<input type="date" name="tipi-yttc-dates[' . $pairIndex . '][end_date]" value="' . $end_date . '" />';
+        echo '<button type="button" class="button tipi-yttc-delete-date">Delete</button>';
+        echo '</div>';
+
+        $pairIndex++;
+    }
+    echo '</div>';
 }
 
 // Output shortcode
+// Output shortcode
 function tipi_yttc_shortcode($atts) {
     $dates = get_option('tipi-yttc-dates', array());
+    $limit = isset($atts['limit']) ? intval($atts['limit']) : 3; // Limit the number of displayed dates
 
     $output = '<ul>';
 
-    foreach ($dates as $date_pair) {
-        $start_date = date('M d', strtotime($date_pair['start_date']));
-        $end_date = date('M d', strtotime($date_pair['end_date']));
+    $count = 0; // Counter to track the number of displayed dates
 
-        $output .= '<li><span class="startdate">' . $start_date . '</span> - <span class="enddate">' . $end_date . '</span></li>';
+    foreach ($dates as $date_pair) {
+        $start_date = date('M j', strtotime($date_pair['start_date'])); // Format the start date as "M j"
+        $end_date = date('M j', strtotime($date_pair['end_date'])); // Format the end date as "M j"
+
+        // Check if all dates within the range are in the future
+        $date_range = new DatePeriod(
+            new DateTime($date_pair['start_date']),
+            new DateInterval('P1D'),
+            new DateTime($date_pair['end_date'])
+        );
+        $all_future = true;
+        foreach ($date_range as $date) {
+            if ($date < new DateTime('today')) {
+                $all_future = false;
+                break;
+            }
+        }
+
+        if ($all_future) {
+            $output .= '<li><span class="startdate">' . $start_date . '</span> - <span class="enddate">' . $end_date . '</span></li>';
+
+            $count++; // Increment the counter
+
+            // Break the loop if the number of displayed dates reaches the limit
+            if ($count >= $limit) {
+                break;
+            }
+        }
     }
 
     $output .= '</ul>';
@@ -190,3 +212,5 @@ function tipi_yttc_shortcode($atts) {
     return $output;
 }
 add_shortcode('tipi-yttc-dates', 'tipi_yttc_shortcode');
+
+
