@@ -27,7 +27,7 @@ function tipi_yttc_settings_page() {
                 $end_date = sanitize_text_field($date_pair["end_date"]);
 
                 // Check if neither the start nor end date is before or the same as the current moment
-                if (strtotime($start_date) > time() && strtotime($end_date) > time()) {
+                if (strtotime($start_date) > time() || strtotime($end_date) > time()) {
                     // Add the sanitized date pair to the array
                     $sanitized_dates[] = array(
                         "start_date" => $start_date,
@@ -168,8 +168,7 @@ function tipi_yttc_dates_field($dates) {
 }
 
 // Output shortcode
-// Output shortcode
-function tipi_yttc_shortcode($atts) {
+function future_yttc_shortcode($atts) {
     $dates = get_option('tipi-yttc-dates', array());
     $limit = isset($atts['limit']) ? intval($atts['limit']) : 3; // Limit the number of displayed dates
 
@@ -180,30 +179,15 @@ function tipi_yttc_shortcode($atts) {
     foreach ($dates as $date_pair) {
         $start_date = date('M j', strtotime($date_pair['start_date'])); // Format the start date as "M j"
         $end_date = date('M j', strtotime($date_pair['end_date'])); // Format the end date as "M j"
+        $year = date('Y', strtotime($date_pair['start_date'])); // Extract the year from the start date
 
-        // Check if all dates within the range are in the future
-        $date_range = new DatePeriod(
-            new DateTime($date_pair['start_date']),
-            new DateInterval('P1D'),
-            new DateTime($date_pair['end_date'])
-        );
-        $all_future = true;
-        foreach ($date_range as $date) {
-            if ($date < new DateTime('today')) {
-                $all_future = false;
-                break;
-            }
-        }
+        $output .= '<li><span class="date">' . $start_date . ' - ' . $end_date . ' ' . $year . '</span></li>';
 
-        if ($all_future) {
-            $output .= '<li><span class="startdate">' . $start_date . '</span> - <span class="enddate">' . $end_date . '</span></li>';
+        $count++; // Increment the counter
 
-            $count++; // Increment the counter
-
-            // Break the loop if the number of displayed dates reaches the limit
-            if ($count >= $limit) {
-                break;
-            }
+        // Break the loop if the number of displayed dates reaches the limit
+        if ($count >= $limit) {
+            break;
         }
     }
 
@@ -211,6 +195,110 @@ function tipi_yttc_shortcode($atts) {
 
     return $output;
 }
-add_shortcode('tipi-yttc-dates', 'tipi_yttc_shortcode');
+add_shortcode('future-yttc', 'future_yttc_shortcode');
+
+// Output shortcode
+function next_yttc_shortcode($atts) {
+    $dates = get_option('tipi-yttc-dates', array());
+
+    // Find the next date pair
+    $next_date = null;
+    $current_date = new DateTime('today');
+    foreach ($dates as $date_pair) {
+        $start_date = new DateTime($date_pair['start_date']);
+        $end_date = new DateTime($date_pair['end_date']);
+
+        if ($start_date > $current_date) {
+            $next_date = $date_pair;
+            break;
+        }
+    }
+
+    $output = '';
+
+    if ($next_date) {
+        $start_date = date('F j', strtotime($next_date['start_date']));
+        $end_date = date('F j, Y', strtotime($next_date['end_date']));
+        $output = $start_date . ' - ' . $end_date;
+    }
+
+    return $output;
+}
+add_shortcode('next-yttc', 'next_yttc_shortcode');
 
 
+function next_and_upcoming_yttcs_shortcode($atts) {
+    $dates = get_option('tipi-yttc-dates', array());
+
+    // Find the next date pair
+    $next_date = null;
+    $current_date = new DateTime('today');
+    foreach ($dates as $date_pair) {
+        $start_date = new DateTime($date_pair['start_date']);
+        $end_date = new DateTime($date_pair['end_date']);
+
+        if ($start_date >= $current_date) {
+            $next_date = $date_pair;
+            break;
+        }
+    }
+
+    $output = '';
+
+    if ($next_date) {
+        // Format the next date pair
+        $next_start_date = date('F j', strtotime($next_date['start_date']));
+        // $next_end_date = date('F j', strtotime($next_date['end_date']));
+        $next_end_date_with_year = date('F j Y', strtotime($next_date['end_date']));
+        $next_output = '<h2 style="text-decoration: underline;">' . $next_start_date . ' - ' . $next_end_date_with_year . '</h2>';
+
+        // Find the upcoming date pairs
+        $upcoming_dates = array_slice($dates, array_search($next_date, $dates) + 1, 2);
+        $upcoming_output = '';
+        foreach ($upcoming_dates as $date_pair) {
+            $start_date = date('M j', strtotime($date_pair['start_date']));
+            $end_date_with_year = date('M j Y', strtotime($date_pair['end_date']));
+            $upcoming_output .= $start_date . ' - ' . $end_date_with_year . '<br />';
+        }
+
+        // Generate the final output
+        if ($upcoming_output) {
+            $output = $next_output . '<h3><strong>Other Course Dates</strong></br>' . $upcoming_output . '</h3>';
+        } else {
+            $output = $next_output;
+        }
+    }
+
+    return $output;
+}
+add_shortcode('next-and-upcoming-yttcs', 'next_and_upcoming_yttcs_shortcode');
+
+
+
+function upcoming_yttcs_shortcode($atts) {// need to strip the first date off this one still
+    $dates = get_option('tipi-yttc-dates', array());
+    $next_date = '';
+
+    foreach ($dates as $date_pair) {
+        $start_date = new DateTime($date_pair['start_date']);
+
+        if ($start_date > new DateTime('today')) {
+            $next_date = $date_pair;
+            break;
+        }
+    }
+
+    $output = '';
+
+    if (!empty($next_date)) {
+        $start_date = date('F j', strtotime($next_date['start_date']));
+        $end_date = date('F j', strtotime($next_date['end_date']));
+        $year = date('Y', strtotime($next_date['start_date']));
+
+        $output = $start_date . ' - ' . $end_date . ' ' . $year;
+    }
+
+    return $output;
+}
+
+add_shortcode('upcoming-yttcs', 'upcoming_yttcs_shortcode');
