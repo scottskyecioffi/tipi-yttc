@@ -145,7 +145,7 @@ function tipi_yttc_settings_page() {
 function tipi_yttc_register_settings() {
     register_setting('tipi-yttc-settings', 'tipi-yttc-dates');
     add_action('tipi-yttc-settings-section', 'tipi_yttc_dates_section');
-    add_action('tipi-yttc-settings-fields', 'tipi_yttc_dates_field');
+    // add_action('tipi-yttc-settings-fields', 'tipi_yttc_dates_field');
 }
 add_action('admin_init', 'tipi_yttc_register_settings');
 
